@@ -1,0 +1,9 @@
+backend/venv/
+backend/__pycache__/
+backend/dataset/
+backend/models/
+*.jpg
+*.png
+*.csv
+.env
+.vscode/

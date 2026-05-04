@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepScan AI | Advanced Deepfake Detection</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="glass-bg"></div>
+    
+    <nav>
+        <div class="logo">DEEP<span>SCAN</span> AI</div>
+        <div class="nav-links">
+            <a href="#" class="active">Detection</a>
+            <a href="#">About</a>
+            <a href="#">API</a>
+        </div>
+    </nav>
+
+    <main>
+        <header>
+            <h1>Unmask the <span class="gradient-text">Digital Truth</span></h1>
+            <p>Advanced AI-powered detection for manipulated images and synthetic text.</p>
+        </header>
+
+        <div class="container">
+            <!-- Image Detection Section -->
+            <section class="card" id="image-section">
+                <div class="card-header">
+                    <h2>Image Analysis</h2>
+                    <p>Detect AI-generated faces and deepfakes.</p>
+                </div>
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-zone-content">
+                        <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        <p>Drag & Drop Image or <span>Browse</span></p>
+                    </div>
+                    <input type="file" id="image-input" accept="image/*" hidden>
+                    <img id="preview" class="hidden">
+                </div>
+                <div class="action-buttons" style="display: flex; gap: 10px;">
+                    <button class="btn primary" id="scan-image" style="flex: 1;">Analyze Image</button>
+                    <button class="btn secondary hidden" id="clear-image">Clear Image</button>
+                </div>
+                <div class="result hidden" id="image-result">
+                    <div class="custom-result-content">
+                        <p class="custom-res-line">🖼️ Image: <strong id="image-label">AI-Generated</strong> (<span id="image-confidence">87%</span>)</p>
+                        
+                        <div class="custom-res-section">
+                            <p>🔍 <strong>Reasons:</strong></p>
+                            <ul id="image-reasons" class="custom-res-list">
+                            </ul>
+                        </div>
+                        
+                        <div class="custom-res-section">
+                            <p>🎯 <strong>Highlighted Areas:</strong></p>
+                            <ul id="image-highlights" class="custom-res-list">
+                            </ul>
+                        </div>
+                        
+                        <p class="custom-res-line auth-score-line">📊 Authenticity Score: <strong id="image-auth-score">32% (Low)</strong></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Text Detection Section -->
+            <section class="card" id="text-section">
+                <div class="card-header">
+                    <h2>Text & Link Analysis</h2>
+                    <p>Verify news articles, content, or external links.</p>
+                </div>
+                <textarea id="text-input" placeholder="Paste article text or news URL here..."></textarea>
+                <button class="btn secondary" id="scan-text">Verify Content / Link</button>
+                <div class="result hidden" id="text-result">
+                    <div class="result-details">
+                        <span id="text-label" class="label">Pending</span>
+                        <span id="text-confidence" class="confidence">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="text-progress" class="progress"></div>
+                    </div>
+                    
+                    <!-- Verified Sources Section -->
+                    <div id="sources-container" class="sources-container hidden">
+                        <p class="source-summary" id="source-summary"></p>
+                        <div class="sources-list" id="sources-list"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 DeepScan AI. Empowering digital trust.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -14,7 +14,7 @@ const textLabel = document.getElementById('text-label');
 const textConfidence = document.getElementById('text-confidence');
 const textProgress = document.getElementById('text-progress');
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = '';
 
 // Image Upload Logic
 dropZone.addEventListener('click', () => imageInput.click());

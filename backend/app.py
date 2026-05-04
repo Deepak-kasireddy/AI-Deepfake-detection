@@ -10,8 +10,12 @@ from services.source_checker import SourceChecker
 import requests
 from bs4 import BeautifulSoup
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '../fronted')), static_url_path='/')
 CORS(app)
+
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
 
 # Load models and services
 image_model = None

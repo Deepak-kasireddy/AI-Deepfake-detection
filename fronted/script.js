@@ -1,37 +1,84 @@
+const API_BASE = window.location.origin;
+
+// Helper to safely format percentages and handle NaN/null/undefined
+function safeFormat(value) {
+    if (value === null || value === undefined) return "0.00";
+    let num = parseFloat(value);
+    if (isNaN(num) || !isFinite(num)) return "0.00";
+    // If the value is already likely a percentage (e.g. 85.5) and not a probability (0-1)
+    // but the code expects probability, we should be careful.
+    // However, the current backend returns probabilities (0-1).
+    return (num * 100).toFixed(2);
+}
+
+// DOM Elements
 const dropZone = document.getElementById('drop-zone');
 const imageInput = document.getElementById('image-input');
 const preview = document.getElementById('preview');
-const scanImageBtn = document.getElementById('scan-image');
+const scanImageBtn = document.getElementById('scan-image-btn');
 const imageResult = document.getElementById('image-result');
 const imageLabel = document.getElementById('image-label');
 const imageConfidence = document.getElementById('image-confidence');
 const imageProgress = document.getElementById('image-progress');
 
 const textInput = document.getElementById('text-input');
-const scanTextBtn = document.getElementById('scan-text');
+const scanTextBtn = document.getElementById('scan-text-btn');
 const textResult = document.getElementById('text-result');
 const textLabel = document.getElementById('text-label');
 const textConfidence = document.getElementById('text-confidence');
 const textProgress = document.getElementById('text-progress');
+const textSourcesContainer = document.getElementById('text-sources-container');
+const textSourcesList = document.getElementById('text-sources-list');
 
-const API_BASE = '';
+const urlInput = document.getElementById('url-input');
+const scanUrlBtn = document.getElementById('scan-url-btn');
+const urlResult = document.getElementById('url-result');
+const urlStatus = document.getElementById('url-status');
+const urlScore = document.getElementById('url-score');
+
+const analyzeBtn = document.getElementById('analyze-btn');
+const output = document.getElementById('output');
 
 // Image Upload Logic
 dropZone.addEventListener('click', () => imageInput.click());
 
-imageInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            preview.src = e.target.result;
-            preview.classList.remove('hidden');
-            document.querySelector('.drop-zone-content').classList.add('hidden');
-        };
-        reader.readAsDataURL(file);
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragging');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragging');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragging');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        imageInput.files = files;
+        handleImageSelect(files[0]);
     }
 });
 
+imageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        handleImageSelect(file);
+    }
+});
+
+function handleImageSelect(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+        document.querySelector('.drop-zone-content').classList.add('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+// Scan Image
 scanImageBtn.addEventListener('click', async () => {
     const file = imageInput.files[0];
     if (!file) {
@@ -50,173 +97,197 @@ scanImageBtn.addEventListener('click', async () => {
             method: 'POST',
             body: formData
         });
-        const data = await response.json();
 
-        imageResult.classList.remove('hidden');
-        
-        const isFake = data.label === 'Fake';
-        const labelText = isFake ? 'AI-Generated' : 'Real Image';
-        const confPercent = Math.round(data.confidence);
-        
-        document.getElementById('image-label').textContent = labelText;
-        document.getElementById('image-confidence').textContent = `${confPercent}%`;
-        
-        const reasonsList = document.getElementById('image-reasons');
-        const highlightsList = document.getElementById('image-highlights');
-        
-        reasonsList.innerHTML = '';
-        highlightsList.innerHTML = '';
-        
-        if (isFake) {
-            const fakeReasons = [
-                'Unnatural facial symmetry',
-                'Inconsistent lighting',
-                'GAN artifact patterns'
-            ];
-            const fakeHighlights = [
-                'Face edges',
-                'Background distortions'
-            ];
-            
-            fakeReasons.forEach(r => {
-                const li = document.createElement('li');
-                li.textContent = r;
-                reasonsList.appendChild(li);
-            });
-            
-            fakeHighlights.forEach(h => {
-                const li = document.createElement('li');
-                li.textContent = h;
-                highlightsList.appendChild(li);
-            });
-            
-            document.getElementById('image-label').style.color = '#ff4b2b';
-        } else {
-            const realReasons = [
-                'Natural skin texture',
-                'Consistent shadow directions',
-                'No visible structural anomalies'
-            ];
-            const realHighlights = [
-                'Facial contours',
-                'Eye reflections'
-            ];
-            
-            realReasons.forEach(r => {
-                const li = document.createElement('li');
-                li.textContent = r;
-                reasonsList.appendChild(li);
-            });
-            
-            realHighlights.forEach(h => {
-                const li = document.createElement('li');
-                li.textContent = h;
-                highlightsList.appendChild(li);
-            });
-            
-            document.getElementById('image-label').style.color = '#00f2fe';
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
-        const authScore = isFake ? (100 - confPercent) : confPercent;
-        let scoreLabel = 'Medium';
-        if (authScore < 40) scoreLabel = 'Low';
-        else if (authScore > 75) scoreLabel = 'High';
-        
-        const authScoreElem = document.getElementById('image-auth-score');
-        authScoreElem.textContent = `${authScore}% (${scoreLabel})`;
-        authScoreElem.style.color = authScore < 40 ? '#ff4b2b' : (authScore > 75 ? '#00f2fe' : '#f093fb');
 
+        const data = await response.json();
+        
+        if (data.error) {
+            imageLabel.textContent = "Error";
+            imageConfidence.textContent = "0.00";
+            imageProgress.style.width = '0%';
+            alert("Image Analysis Error:\n" + data.error + (data.traceback ? "\n\nTraceback:\n" + data.traceback : ""));
+        } else {
+            imageLabel.textContent = data.result;
+            imageConfidence.textContent = safeFormat(data.confidence);
+            imageProgress.style.width = (parseFloat(safeFormat(data.confidence)) || 0) + '%';
+        }
+        imageResult.classList.remove('hidden');
 
     } catch (error) {
+        imageLabel.textContent = "Error";
+        imageConfidence.textContent = "0.00";
+        alert("System Error during image analysis:\n" + error.message);
         console.error(error);
-        alert("Error connecting to backend server.");
     } finally {
-        scanImageBtn.textContent = "Analyze Image";
+        scanImageBtn.textContent = "Scan Image";
         scanImageBtn.disabled = false;
     }
 });
 
-// Text & Link Verification Logic
-function isValidUrl(string) {
-    try {
-        new URL(string);
-        return true;
-    } catch (_) {
-        return false;  
-    }
-}
-
+// Scan Text
 scanTextBtn.addEventListener('click', async () => {
     const text = textInput.value.trim();
     if (!text) {
-        alert("Please enter some text or a URL.");
+        alert("Please enter text to analyze.");
         return;
     }
 
-    const isUrl = isValidUrl(text);
-    scanTextBtn.textContent = isUrl ? "Analyzing Link..." : "Verifying Content...";
+    scanTextBtn.textContent = "Analyzing...";
     scanTextBtn.disabled = true;
 
     try {
-        const endpoint = isUrl ? '/predict/url' : '/predict/text';
-        const payload = isUrl ? { url: text } : { text: text };
-        
-        const response = await fetch(`${API_BASE}${endpoint}`, {
+        const response = await fetch(`${API_BASE}/predict/text`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text: text })
         });
-        
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
         
-        if (!response.ok) {
-            throw new Error(data.error || "Server error");
-        }
-
-        textResult.classList.remove('hidden');
-        textLabel.textContent = data.label;
-        textConfidence.textContent = `${data.confidence}%`;
-        textProgress.style.width = `${data.confidence}%`;
-
-        textLabel.style.color = data.label === 'Fake' ? '#ff4b2b' : '#00f2fe';
-        textProgress.style.background = data.label === 'Fake' ? '#ff4b2b' : '#00f2fe';
-
-        // Source Verification Logic
-        const sourcesContainer = document.getElementById('sources-container');
-        const sourceSummary = document.getElementById('source-summary');
-        const sourcesList = document.getElementById('sources-list');
-
-        if (data.sources && data.sources.length > 0) {
-            sourcesContainer.classList.remove('hidden');
-            sourceSummary.textContent = data.summary;
-            
-            // If URL, show extracted snippet
-            if (isUrl && data.extracted_text) {
-                sourceSummary.innerHTML = `<strong>Extracted from Link:</strong> <em>"${data.extracted_text}"</em><br><br>${data.summary}`;
-            }
-
-            sourcesList.innerHTML = '';
-            
-            data.sources.forEach(source => {
-                const link = document.createElement('a');
-                link.href = source.url;
-                link.target = '_blank';
-                link.className = `source-btn ${source.type}`;
-                link.innerHTML = `
-                    <span class="source-name">${source.name}</span>
-                    <span class="source-reliability">${source.reliability}</span>
-                `;
-                sourcesList.appendChild(link);
-            });
+        if (data.error) {
+            textLabel.textContent = "Error";
+            textConfidence.textContent = "0.00";
+            textProgress.style.width = '0%';
+            alert("Text Analysis Error:\n" + data.error + (data.traceback ? "\n\nTraceback:\n" + data.traceback : ""));
         } else {
-            sourcesContainer.classList.add('hidden');
+            textLabel.textContent = data.result;
+            textConfidence.textContent = safeFormat(data.confidence);
+            textProgress.style.width = (parseFloat(safeFormat(data.confidence)) || 0) + '%';
+            
+            // Display sources if available
+            if (data.sources && data.sources.length > 0) {
+                textSourcesList.innerHTML = data.sources.map(source => 
+                    `<li><a href="${source.url}" target="_blank">${source.name}</a></li>`
+                ).join('');
+                textSourcesContainer.classList.remove('hidden');
+            } else {
+                textSourcesContainer.classList.add('hidden');
+            }
         }
+        textResult.classList.remove('hidden');
 
     } catch (error) {
+        textLabel.textContent = "Error";
+        textConfidence.textContent = "0.00";
+        alert("System Error during text analysis:\n" + error.message);
         console.error(error);
-        alert(error.message || "Error connecting to backend server.");
     } finally {
-        scanTextBtn.textContent = "Verify Content / Link";
+        scanTextBtn.textContent = "Scan Text";
         scanTextBtn.disabled = false;
+    }
+});
+
+// Check Source
+scanUrlBtn.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    if (!url) {
+        alert("Please enter a URL.");
+        return;
+    }
+
+    scanUrlBtn.textContent = "Checking...";
+    scanUrlBtn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_BASE}/check/source`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ url: url })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        urlStatus.textContent = data.status;
+        let scoreVal = parseFloat(data.score);
+        urlScore.textContent = isNaN(scoreVal) ? "0.00" : scoreVal.toFixed(2);
+        urlResult.classList.remove('hidden');
+
+    } catch (error) {
+        alert("Error checking source: " + error.message);
+        console.error(error);
+    } finally {
+        scanUrlBtn.textContent = "Check Source";
+        scanUrlBtn.disabled = false;
+    }
+});
+
+// Analyze All
+analyzeBtn.addEventListener('click', async () => {
+    const file = imageInput.files[0];
+    const text = textInput.value.trim();
+    const url = urlInput.value.trim();
+
+    if (!file && !text && !url) {
+        alert("Please provide at least one input (image, text, or URL).");
+        return;
+    }
+
+    analyzeBtn.textContent = "Analyzing...";
+    analyzeBtn.disabled = true;
+
+    const formData = new FormData();
+    if (file) formData.append('image', file);
+    if (text) formData.append('text', text);
+    if (url) formData.append('url', url);
+
+    try {
+        const response = await fetch(`${API_BASE}/analyze`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.error) {
+            output.innerHTML = `<div class="error-box"><strong>Analysis Error:</strong> ${data.error}</div>`;
+            alert("Analysis Error:\n" + data.error);
+        } else {
+            // Create a more readable output than just raw JSON
+            output.innerHTML = `
+                <div class="summary-box">
+                    <h3>Overall Authenticity: ${safeFormat(data.score / 100)}%</h3>
+                    <p class="status-label ${(data.label || 'Unknown').toLowerCase().replace(' ', '-')}">Result: ${data.label}</p>
+                </div>
+                <div class="details-grid">
+                    <div class="detail-item"><strong>Image:</strong> ${data.image.result} (${safeFormat(data.image.confidence)}%)</div>
+                    <div class="detail-item"><strong>Text:</strong> ${data.text.result} (${safeFormat(data.text.confidence)}%)</div>
+                    <div class="detail-item"><strong>Source:</strong> ${data.source.status} (Score: ${parseFloat(data.source.score || 0).toFixed(2)})</div>
+                </div>
+                ${data.text.sources && data.text.sources.length > 0 ? `
+                <div class="sources-summary">
+                    <h4>Verified Sources:</h4>
+                    <ul>
+                        ${data.text.sources.map(s => `<li><a href="${s.url}" target="_blank">${s.name}</a></li>`).join('')}
+                    </ul>
+                </div>` : ''}
+            `;
+        }
+        output.classList.remove('hidden');
+
+    } catch (error) {
+        alert("System Error during analysis:\n" + error.message);
+        console.error(error);
+    } finally {
+        analyzeBtn.textContent = "Analyze All";
+        analyzeBtn.disabled = false;
     }
 });

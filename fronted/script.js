@@ -103,6 +103,7 @@ scanImageBtn.addEventListener('click', async () => {
         }
 
         const data = await response.json();
+        console.log("Image Analysis Data:", data);
         
         if (data.error) {
             imageLabel.textContent = "Error";
@@ -152,6 +153,7 @@ scanTextBtn.addEventListener('click', async () => {
         }
 
         const data = await response.json();
+        console.log("Text Analysis Data:", data);
         
         if (data.error) {
             textLabel.textContent = "Error";
@@ -256,6 +258,7 @@ analyzeBtn.addEventListener('click', async () => {
         }
 
         const data = await response.json();
+        console.log("Combined Analysis Data:", data);
         
         if (data.error) {
             output.innerHTML = `<div class="error-box"><strong>Analysis Error:</strong> ${data.error}</div>`;

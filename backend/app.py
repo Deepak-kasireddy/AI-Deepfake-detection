@@ -7,11 +7,22 @@ import os
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from services.image_detector import detect_image
-from services.text_detector import detect_text
-from services.source_checker import check_source
-from services.context_checker import check_context
-from services.aggregator import calculate_reality
+try:
+    from services.image_detector import detect_image
+    from services.text_detector import detect_text
+    from services.source_checker import check_source
+    from services.context_checker import check_context
+    from services.aggregator import calculate_reality
+    print("Successfully imported all services")
+except Exception as e:
+    print(f"Error importing services: {e}")
+    traceback.print_exc()
+    # Define stubs so the app starts even if services fail
+    def detect_image(*args): return {"result": "Import Error", "confidence": 0}
+    def detect_text(*args): return {"result": "Import Error", "confidence": 0, "sources": []}
+    def check_source(*args): return {"status": "Error", "score": 0}
+    def check_context(*args): return {"issue": "Service initialization failed"}
+    def calculate_reality(*args): return 0.0, "System Error"
 
 app = Flask(__name__)
 CORS(app)

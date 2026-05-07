@@ -1,6 +1,11 @@
-FROM python:3.10-slim
+FROM python:3.10
 
 WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY backend/requirements.txt .
@@ -13,8 +18,8 @@ COPY fronted/ ./fronted/
 # Set working directory to backend where app.py is located
 WORKDIR /app/backend
 
-# Expose port 7860 (Hugging Face Spaces default)
+# Expose port 7860
 EXPOSE 7860
 
 # Command to run the application using gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:7860", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "120", "app:app"]

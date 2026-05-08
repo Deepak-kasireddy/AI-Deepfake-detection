@@ -1,11 +1,4 @@
-FROM python:3.10-bullseye
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/home/user/app/backend
-
-WORKDIR /home/user/app
+FROM python:3.10
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,25 +11,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
+# Set up a new user named "user" with user ID 1000
 RUN useradd -m -u 1000 user
+
+# Switch to the "user" user
 USER user
+
+# Set home to the user's home directory
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
+# Set the working directory to the user's home directory
+WORKDIR $HOME/app
+
 # Install dependencies
-COPY --chown=user backend/requirements.txt .
+COPY --chown=user backend/requirements.txt $HOME/app/requirements.txt
 RUN pip install --no-cache-dir --user --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --no-cache-dir --user -r $HOME/app/requirements.txt
 
-# Copy all files
-COPY --chown=user . .
+# Copy the rest of the application
+COPY --chown=user . $HOME/app
 
-# Set working directory to backend for gunicorn
-WORKDIR /home/user/app/backend
+# Set working directory to backend
+WORKDIR $HOME/app/backend
 
-# Expose port 7860
-EXPOSE 7860
-
-# Run with gunicorn - removed --preload to help with slow startup detection
+# Command to run the app
 CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "300", "--workers", "1", "--threads", "8", "app:app"]

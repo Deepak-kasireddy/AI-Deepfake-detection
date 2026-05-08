@@ -3,7 +3,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 import joblib
 
-df = pd.read_csv("../dataset/fake_news.csv")
+df = pd.read_csv("backend/dataset/fake_news.csv")
 
 X = df['text']
 y = df['label']
@@ -14,5 +14,5 @@ X_vec = vectorizer.fit_transform(X)
 model = LogisticRegression()
 model.fit(X_vec, y)
 
-joblib.dump(model, "../models/text_model.pkl")
-joblib.dump(vectorizer, "../models/vectorizer.pkl")
+joblib.dump(model, "backend/models/text_model.pkl")
+joblib.dump(vectorizer, "backend/models/vectorizer.pkl")

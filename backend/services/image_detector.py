@@ -59,17 +59,19 @@ def detect_image(file):
             }
         
         preds = _model.predict(img, verbose=0)
-        pred = float(preds[0][0]) # Probability of "AI-Generated"
+        pred = float(preds[0][0]) # Probability of class 1 ("Real")
         
         # NaN check for pred
         if pred != pred:
             pred = 0.5
             
-        result = "AI-Generated" if pred > 0.5 else "Real"
+        # Class 1 is "Real", Class 0 is "Fake" (alphabetical order)
+        result = "Real" if pred > 0.5 else "AI-Generated"
         
         # Ensure confidence is a valid float and not NaN
         try:
-            conf_val = float(pred if result == "AI-Generated" else 1 - pred)
+            # If Real, confidence is pred. If AI-Generated, confidence is (1-pred)
+            conf_val = float(pred if result == "Real" else 1 - pred)
             confidence = conf_val if conf_val == conf_val else 0.5
         except (TypeError, ValueError):
             confidence = 0.5
@@ -78,10 +80,11 @@ def detect_image(file):
             "result": result,
             "confidence": float(confidence),
             "issues": [
-                "Possible GAN artifacts" if result == "AI-Generated" else "Natural textures",
+                "Natural textures detected" if result == "Real" else "Possible GAN artifacts",
                 "Compression consistency"
             ]
         }
+
     except Exception as e:
         import traceback
         print(f"Error in detect_image: {e}")

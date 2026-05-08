@@ -1,11 +1,11 @@
-FROM python:3.10
+FROM python:3.10-bullseye
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/backend
+    PYTHONPATH=/home/user/app/backend
 
-WORKDIR /app
+WORKDIR /home/user/app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -15,30 +15,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libxext6 \
     build-essential \
-    python3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user for Hugging Face
+# Create a non-root user
 RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
-WORKDIR $HOME/app
-
-# Upgrade pip and install wheel
-RUN pip install --no-cache-dir --user --upgrade pip setuptools wheel
-
 # Install dependencies
 COPY --chown=user backend/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir --user -r requirements.txt
 
-# Copy the rest of the application
+# Copy all files
 COPY --chown=user . .
 
-# Expose the Hugging Face default port
+# Set working directory to backend for gunicorn
+WORKDIR /home/user/app/backend
+
+# Expose port 7860
 EXPOSE 7860
 
-# Run with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "300", "--workers", "1", "--threads", "4", "--preload", "--chdir", "backend", "app:app"]
+# Run with gunicorn - removed --preload to help with slow startup detection
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "300", "--workers", "1", "--threads", "8", "app:app"]

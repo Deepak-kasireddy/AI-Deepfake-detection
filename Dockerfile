@@ -1,25 +1,42 @@
-FROM python:3.10
+FROM python:3.10-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/backend
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies required by TensorFlow and OpenCV
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Create a non-root user for Hugging Face
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
 
-# Copy the backend and frontend code
-COPY backend/ ./backend/
-COPY fronted/ ./fronted/
+WORKDIR $HOME/app
 
-# Set working directory to backend where app.py is located
-WORKDIR /app/backend
+# Install dependencies first for better caching
+COPY --chown=user backend/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Expose port 7860
+# Copy the rest of the application
+COPY --chown=user backend/ ./backend/
+COPY --chown=user fronted/ ./fronted/
+
+# Expose the Hugging Face default port
 EXPOSE 7860
 
-# Command to run the application using gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "120", "app:app"]
+# Run with gunicorn, optimized for memory and startup time
+# --preload: loads the app before forking (saves memory and identifies errors early)
+# --timeout: increased for model loading
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "300", "--workers", "1", "--threads", "4", "--preload", "--chdir", "backend", "app:app"]

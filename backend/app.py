@@ -27,18 +27,39 @@ except Exception as e:
 app = Flask(__name__)
 CORS(app)
 
+# Get absolute path for frontend
+print(f"Current working directory: {os.getcwd()}")
+print(f"File location: {os.path.abspath(__file__)}")
+
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'fronted'))
+print(f"Calculated FRONTEND_DIR: {FRONTEND_DIR}")
+
+if not os.path.exists(FRONTEND_DIR):
+    print(f"CRITICAL WARNING: Frontend directory NOT FOUND at {FRONTEND_DIR}")
+    # Try alternate path just in case
+    alt_path = os.path.abspath(os.path.join(os.getcwd(), 'fronted'))
+    if os.path.exists(alt_path):
+        FRONTEND_DIR = alt_path
+        print(f"Found frontend at alternate path: {FRONTEND_DIR}")
+    else:
+        print("Could not find frontend directory anywhere!")
+else:
+    print(f"Frontend directory verified at: {FRONTEND_DIR}")
+    print(f"Files in frontend: {os.listdir(FRONTEND_DIR)}")
+
 # Serve Frontend
 @app.route('/')
 def index():
-    return send_from_directory('../fronted', 'index.html')
+    return send_from_directory(FRONTEND_DIR, 'index.html')
 
 @app.route('/<path:path>')
 def static_proxy(path):
-    return send_from_directory('../fronted', path)
+    return send_from_directory(FRONTEND_DIR, path)
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy"}), 200
+    print("Health check requested")
+    return jsonify({"status": "healthy", "frontend_exists": os.path.exists(FRONTEND_DIR)}), 200
 
 @app.route('/predict/image', methods=['POST'])
 def predict_image():
@@ -104,4 +125,6 @@ def analyze():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("Starting Flask app directly...")
+    # Port 7860 is default for Hugging Face
+    app.run(debug=True, host='0.0.0.0', port=7860)

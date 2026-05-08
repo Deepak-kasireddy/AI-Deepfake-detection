@@ -1,14 +1,21 @@
 const API_BASE = window.location.origin;
 
-// Helper to safely format percentages and handle NaN/null/undefined
+// Helper to safely format percentages
 function safeFormat(value) {
-    if (value === null || value === undefined) return "0.00";
+    if (value === null || value === undefined) return "0";
     let num = parseFloat(value);
-    if (isNaN(num) || !isFinite(num)) return "0.00";
-    // If the value is already likely a percentage (e.g. 85.5) and not a probability (0-1)
-    // but the code expects probability, we should be careful.
-    // However, the current backend returns probabilities (0-1).
-    return (num * 100).toFixed(2);
+    if (isNaN(num)) return "0";
+    // Convert 0-1 range to 0-100
+    if (num <= 1 && num > 0) num = num * 100;
+    return num.toFixed(1);
+}
+
+// Get Badge Class
+function getBadgeClass(label) {
+    const l = (label || "").toLowerCase();
+    if (l.includes("authentic") || l.includes("real")) return "authentic";
+    if (l.includes("suspicious")) return "suspicious";
+    return "fake";
 }
 
 // DOM Elements
@@ -16,56 +23,29 @@ const dropZone = document.getElementById('drop-zone');
 const imageInput = document.getElementById('image-input');
 const preview = document.getElementById('preview');
 const scanImageBtn = document.getElementById('scan-image-btn');
-const imageResult = document.getElementById('image-result');
-const imageLabel = document.getElementById('image-label');
-const imageConfidence = document.getElementById('image-confidence');
-const imageProgress = document.getElementById('image-progress');
-
-const textInput = document.getElementById('text-input');
 const scanTextBtn = document.getElementById('scan-text-btn');
-const textResult = document.getElementById('text-result');
-const textLabel = document.getElementById('text-label');
-const textConfidence = document.getElementById('text-confidence');
-const textProgress = document.getElementById('text-progress');
-const textSourcesContainer = document.getElementById('text-sources-container');
-const textSourcesList = document.getElementById('text-sources-list');
-
-const urlInput = document.getElementById('url-input');
 const scanUrlBtn = document.getElementById('scan-url-btn');
-const urlResult = document.getElementById('url-result');
-const urlStatus = document.getElementById('url-status');
-const urlScore = document.getElementById('url-score');
-
 const analyzeBtn = document.getElementById('analyze-btn');
-const output = document.getElementById('output');
+const textInput = document.getElementById('text-input');
+const urlInput = document.getElementById('url-input');
+const resultDashboard = document.getElementById('result-dashboard');
+const analysisOutput = document.getElementById('analysis-output');
 
-// Image Upload Logic
+// Image Selection
 dropZone.addEventListener('click', () => imageInput.click());
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('dragging');
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragging');
-});
-
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragging'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
 dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('dragging');
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        imageInput.files = files;
-        handleImageSelect(files[0]);
+    if (e.dataTransfer.files.length) {
+        imageInput.files = e.dataTransfer.files;
+        handleImageSelect(e.dataTransfer.files[0]);
     }
 });
 
 imageInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        handleImageSelect(file);
-    }
+    if (e.target.files[0]) handleImageSelect(e.target.files[0]);
 });
 
 function handleImageSelect(file) {
@@ -78,157 +58,102 @@ function handleImageSelect(file) {
     reader.readAsDataURL(file);
 }
 
-// Scan Image
-scanImageBtn.addEventListener('click', async () => {
-    const file = imageInput.files[0];
-    if (!file) {
-        alert("Please select an image first.");
+// Main Analysis Logic
+async function performAnalysis(endpoint, body, isFormData = false) {
+    try {
+        const options = { method: 'POST', body: body };
+        if (!isFormData) options.headers = { 'Content-Type': 'application/json' };
+
+        const response = await fetch(`${API_BASE}${endpoint}`, options);
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+        
+        return await response.json();
+    } catch (error) {
+        console.error("Analysis Error:", error);
+        return { error: error.message };
+    }
+}
+
+function renderResult(data) {
+    resultDashboard.classList.remove('hidden');
+    
+    if (data.error) {
+        analysisOutput.innerHTML = `<div class="badge fake">Error: ${data.error}</div>`;
         return;
     }
 
-    scanImageBtn.textContent = "Analyzing...";
-    scanImageBtn.disabled = true;
+    const badgeClass = getBadgeClass(data.label);
+    
+    analysisOutput.innerHTML = `
+        <div class="summary-header">
+            <div class="score-circle" style="border-color: var(--${badgeClass})">
+                <span>${safeFormat(data.score)}%</span>
+                <label>Authentic</label>
+            </div>
+            <div style="text-align: right">
+                <div class="badge ${badgeClass}">${data.label}</div>
+                <p style="margin-top: 10px; color: var(--text-dim)">Analysis timestamp: ${new Date().toLocaleTimeString()}</p>
+            </div>
+        </div>
 
-    const formData = new FormData();
-    formData.append('file', file);
+        <div class="analysis-description">
+            <p>${data.summary || "No description available."}</p>
+        </div>
 
-    try {
-        const response = await fetch(`${API_BASE}/predict/image`, {
-            method: 'POST',
-            body: formData
-        });
+        <div class="highlights-title">✦ Detailed Insights & Highlights</div>
+        <ul class="highlight-list">
+            ${(data.insights || ["No specific insights available."]).map(insight => `
+                <li class="highlight-item">${insight}</li>
+            `).join('')}
+        </ul>
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        <div class="detail-grid" style="margin-top: 2rem;">
+            <div class="detail-card">
+                <h4>Visual Forensics</h4>
+                <div style="font-size: 1.2rem; font-weight: 600;">${data.image?.result || "N/A"}</div>
+                <div class="detail-progress-bg">
+                    <div class="detail-progress-fill" style="width: ${safeFormat(data.image?.confidence)}%"></div>
+                </div>
+                <small>${safeFormat(data.image?.confidence)}% probability</small>
+            </div>
 
-        const data = await response.json();
-        console.log("Image Analysis Data:", data);
-        
-        if (data.error) {
-            imageLabel.textContent = "Error";
-            imageConfidence.textContent = "0.00";
-            imageProgress.style.width = '0%';
-            alert("Image Analysis Error:\n" + data.error + (data.traceback ? "\n\nTraceback:\n" + data.traceback : ""));
-        } else {
-            imageLabel.textContent = data.result;
-            imageConfidence.textContent = safeFormat(data.confidence);
-            imageProgress.style.width = (parseFloat(safeFormat(data.confidence)) || 0) + '%';
-        }
-        imageResult.classList.remove('hidden');
+            <div class="detail-card">
+                <h4>Linguistic Analysis</h4>
+                <div style="font-size: 1.2rem; font-weight: 600;">${data.text?.result || "N/A"}</div>
+                <div class="detail-progress-bg">
+                    <div class="detail-progress-fill" style="width: ${safeFormat(data.text?.confidence)}%"></div>
+                </div>
+                <small>${safeFormat(data.text?.confidence)}% confidence</small>
+            </div>
 
-    } catch (error) {
-        imageLabel.textContent = "Error";
-        imageConfidence.textContent = "0.00";
-        alert("System Error during image analysis:\n" + error.message);
-        console.error(error);
-    } finally {
-        scanImageBtn.textContent = "Scan Image";
-        scanImageBtn.disabled = false;
-    }
-});
+            <div class="detail-card">
+                <h4>Source Credibility</h4>
+                <div style="font-size: 1.2rem; font-weight: 600;">${data.source?.status || "Unknown"}</div>
+                <div class="detail-progress-bg">
+                    <div class="detail-progress-fill" style="width: ${data.source?.score || 0}%"></div>
+                </div>
+                <small>Trust Score: ${data.source?.score || 0}/100</small>
+            </div>
+        </div>
 
-// Scan Text
-scanTextBtn.addEventListener('click', async () => {
-    const text = textInput.value.trim();
-    if (!text) {
-        alert("Please enter text to analyze.");
-        return;
-    }
+        ${data.text?.sources && data.text.sources.length > 0 ? `
+        <div style="margin-top: 2rem;">
+            <div class="highlights-title">🔗 Corroborating Sources</div>
+            <ul style="list-style: none; padding-left: 0;">
+                ${data.text.sources.map(s => `
+                    <li style="margin-bottom: 8px;">
+                        <a href="${s.url}" target="_blank" style="color: var(--primary); text-decoration: none;">➜ ${s.name}</a>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>` : ''}
+    `;
+    
+    // Smooth scroll to results
+    resultDashboard.scrollIntoView({ behavior: 'smooth' });
+}
 
-    scanTextBtn.textContent = "Analyzing...";
-    scanTextBtn.disabled = true;
-
-    try {
-        const response = await fetch(`${API_BASE}/predict/text`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ text: text })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Text Analysis Data:", data);
-        
-        if (data.error) {
-            textLabel.textContent = "Error";
-            textConfidence.textContent = "0.00";
-            textProgress.style.width = '0%';
-            alert("Text Analysis Error:\n" + data.error + (data.traceback ? "\n\nTraceback:\n" + data.traceback : ""));
-        } else {
-            textLabel.textContent = data.result;
-            textConfidence.textContent = safeFormat(data.confidence);
-            textProgress.style.width = (parseFloat(safeFormat(data.confidence)) || 0) + '%';
-            
-            // Display sources if available
-            if (data.sources && data.sources.length > 0) {
-                textSourcesList.innerHTML = data.sources.map(source => 
-                    `<li><a href="${source.url}" target="_blank">${source.name}</a></li>`
-                ).join('');
-                textSourcesContainer.classList.remove('hidden');
-            } else {
-                textSourcesContainer.classList.add('hidden');
-            }
-        }
-        textResult.classList.remove('hidden');
-
-    } catch (error) {
-        textLabel.textContent = "Error";
-        textConfidence.textContent = "0.00";
-        alert("System Error during text analysis:\n" + error.message);
-        console.error(error);
-    } finally {
-        scanTextBtn.textContent = "Scan Text";
-        scanTextBtn.disabled = false;
-    }
-});
-
-// Check Source
-scanUrlBtn.addEventListener('click', async () => {
-    const url = urlInput.value.trim();
-    if (!url) {
-        alert("Please enter a URL.");
-        return;
-    }
-
-    scanUrlBtn.textContent = "Checking...";
-    scanUrlBtn.disabled = true;
-
-    try {
-        const response = await fetch(`${API_BASE}/check/source`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ url: url })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        urlStatus.textContent = data.status;
-        let scoreVal = parseFloat(data.score);
-        urlScore.textContent = isNaN(scoreVal) ? "0.00" : scoreVal.toFixed(2);
-        urlResult.classList.remove('hidden');
-
-    } catch (error) {
-        alert("Error checking source: " + error.message);
-        console.error(error);
-    } finally {
-        scanUrlBtn.textContent = "Check Source";
-        scanUrlBtn.disabled = false;
-    }
-});
-
-// Analyze All
+// Event Listeners
 analyzeBtn.addEventListener('click', async () => {
     const file = imageInput.files[0];
     const text = textInput.value.trim();
@@ -239,58 +164,63 @@ analyzeBtn.addEventListener('click', async () => {
         return;
     }
 
-    analyzeBtn.textContent = "Analyzing...";
     analyzeBtn.disabled = true;
+    analyzeBtn.textContent = "Processing Neural Layers...";
 
     const formData = new FormData();
     if (file) formData.append('image', file);
     if (text) formData.append('text', text);
     if (url) formData.append('url', url);
 
-    try {
-        const response = await fetch(`${API_BASE}/analyze`, {
-            method: 'POST',
-            body: formData
-        });
+    const result = await performAnalysis('/analyze', formData, true);
+    renderResult(result);
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = "Run Full Neural Analysis";
+});
 
-        const data = await response.json();
-        console.log("Combined Analysis Data:", data);
-        
-        if (data.error) {
-            output.innerHTML = `<div class="error-box"><strong>Analysis Error:</strong> ${data.error}</div>`;
-            alert("Analysis Error:\n" + data.error);
-        } else {
-            // Create a more readable output than just raw JSON
-            output.innerHTML = `
-                <div class="summary-box">
-                    <h3>Overall Authenticity: ${safeFormat(data.score / 100)}%</h3>
-                    <p class="status-label ${(data.label || 'Unknown').toLowerCase().replace(' ', '-')}">Result: ${data.label}</p>
-                </div>
-                <div class="details-grid">
-                    <div class="detail-item"><strong>Image:</strong> ${data.image.result} (${safeFormat(data.image.confidence)}%)</div>
-                    <div class="detail-item"><strong>Text:</strong> ${data.text.result} (${safeFormat(data.text.confidence)}%)</div>
-                    <div class="detail-item"><strong>Source:</strong> ${data.source.status} (Score: ${parseFloat(data.source.score || 0).toFixed(2)})</div>
-                </div>
-                ${data.text.sources && data.text.sources.length > 0 ? `
-                <div class="sources-summary">
-                    <h4>Verified Sources:</h4>
-                    <ul>
-                        ${data.text.sources.map(s => `<li><a href="${s.url}" target="_blank">${s.name}</a></li>`).join('')}
-                    </ul>
-                </div>` : ''}
-            `;
-        }
-        output.classList.remove('hidden');
+// Single scanners (re-use the render logic for consistency)
+scanImageBtn.addEventListener('click', async () => {
+    if (!imageInput.files[0]) return alert("Select image first");
+    scanImageBtn.disabled = true;
+    const formData = new FormData();
+    formData.append('file', imageInput.files[0]);
+    const result = await performAnalysis('/predict/image', formData, true);
+    // Wrap single result in aggregator-like structure for the renderer
+    renderResult({
+        score: result.confidence * 100,
+        label: result.result === "Real" ? "Authentic" : "Likely Fake",
+        summary: `Visual analysis of the uploaded media indicates ${result.result.toLowerCase()} patterns.`,
+        insights: result.issues || [],
+        image: result
+    });
+    scanImageBtn.disabled = false;
+});
 
-    } catch (error) {
-        alert("System Error during analysis:\n" + error.message);
-        console.error(error);
-    } finally {
-        analyzeBtn.textContent = "Analyze All";
-        analyzeBtn.disabled = false;
-    }
+scanTextBtn.addEventListener('click', async () => {
+    if (!textInput.value.trim()) return alert("Enter text first");
+    scanTextBtn.disabled = true;
+    const result = await performAnalysis('/predict/text', JSON.stringify({ text: textInput.value.trim() }));
+    renderResult({
+        score: result.confidence * 100,
+        label: result.result === "Real" ? "Authentic" : "Likely Fake",
+        summary: `Linguistic analysis of the provided text suggests ${result.result.toLowerCase()} characteristics.`,
+        insights: result.issues || [],
+        text: result
+    });
+    scanTextBtn.disabled = false;
+});
+
+scanUrlBtn.addEventListener('click', async () => {
+    if (!urlInput.value.trim()) return alert("Enter URL first");
+    scanUrlBtn.disabled = true;
+    const result = await performAnalysis('/check/source', JSON.stringify({ url: urlInput.value.trim() }));
+    renderResult({
+        score: result.score,
+        label: result.score > 70 ? "Authentic" : "Suspicious",
+        summary: `The source domain "${urlInput.value}" has a trust score of ${result.score}/100.`,
+        insights: [result.status],
+        source: result
+    });
+    scanUrlBtn.disabled = false;
 });

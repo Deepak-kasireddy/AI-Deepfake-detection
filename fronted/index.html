@@ -1,67 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Trust Platform - Deepfake Detection</title>
+    <title>AI Trust Platform | Premium Deepfake Detection</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>🧠 AI Trust Platform</h1>
-        <p class="subtitle">Detect deepfakes and verify content authenticity</p>
+        <header>
+            <h1>🧠 AI Trust Platform</h1>
+            <p class="subtitle">Next-generation neural analysis for verifying media authenticity and detecting AI-generated content.</p>
+        </header>
 
-        <div class="section">
-            <h2>📸 Image Analysis</h2>
-            <div class="drop-zone" id="drop-zone">
-                <div class="drop-zone-content">
-                    <p>Drop image here or click to select</p>
+        <main>
+            <!-- Input Modules -->
+            <div class="section">
+                <h2>📸 Image Analysis</h2>
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-zone-content">
+                        <p>Drag & drop image or click to browse</p>
+                        <small style="color: #64748b;">Supports JPG, PNG, WEBP</small>
+                    </div>
+                    <img id="preview" class="hidden" alt="Analysis preview" />
                 </div>
-                <img id="preview" class="hidden" />
-            </div>
-            <input type="file" id="image-input" accept="image/*" style="display:none;">
-            <button id="scan-image-btn" class="btn">Scan Image</button>
-            <div id="image-result" class="result hidden">
-                <p>Result: <span id="image-label"></span></p>
-                <p>Confidence: <span id="image-confidence"></span>%</p>
-                <div class="progress-bar">
-                    <div id="image-progress" class="progress-fill"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>📝 Text Analysis</h2>
-            <textarea id="text-input" placeholder="Paste text to analyze..."></textarea>
-            <button id="scan-text-btn" class="btn">Scan Text</button>
-            <div id="text-result" class="result hidden">
-                <p>Result: <span id="text-label"></span></p>
-                <p>Confidence: <span id="text-confidence"></span>%</p>
-                <div class="progress-bar">
-                    <div id="text-progress" class="progress-fill"></div>
-                </div>
-                <div id="text-sources-container" class="hidden">
-                    <h4>Related News Sources:</h4>
-                    <ul id="text-sources-list"></ul>
+                <input type="file" id="image-input" accept="image/*" style="display:none;">
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button id="scan-image-btn" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Scan Image Only</button>
                 </div>
             </div>
-        </div>
 
-        <div class="section">
-            <h2>🔗 Source Check</h2>
-            <input type="url" id="url-input" placeholder="Enter URL to check...">
-            <button id="scan-url-btn" class="btn">Check Source</button>
-            <div id="url-result" class="result hidden">
-                <p>Status: <span id="url-status"></span></p>
-                <p>Trust Score: <span id="url-score"></span>/100</p>
+            <div class="section">
+                <h2>📝 Text & Context Analysis</h2>
+                <textarea id="text-input" placeholder="Paste article content or statements here..."></textarea>
+                <input type="url" id="url-input" placeholder="Optional: Enter source URL for verification">
+                
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="scan-text-btn" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Scan Text Only</button>
+                    <button id="scan-url-btn" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Check URL Only</button>
+                </div>
             </div>
-        </div>
 
-        <div class="section">
-            <h2>📊 Combined Analysis</h2>
-            <button id="analyze-btn" class="btn btn-primary">Analyze All</button>
-            <pre id="output" class="output hidden"></pre>
-        </div>
+            <!-- Main Action -->
+            <div style="margin-bottom: 3rem;">
+                <button id="analyze-btn" class="btn btn-primary">Run Full Neural Analysis</button>
+            </div>
+
+            <!-- Result Dashboard -->
+            <div id="result-dashboard" class="section hidden">
+                <h2>📊 Analysis Result</h2>
+                <div id="analysis-output">
+                    <!-- Dynamic Content -->
+                </div>
+            </div>
+        </main>
     </div>
 
     <script src="script.js"></script>

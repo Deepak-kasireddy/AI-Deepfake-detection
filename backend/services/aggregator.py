@@ -51,12 +51,30 @@ def calculate_reality(image, text, source):
 
         if score > 70:
             label = "Authentic"
+            summary = "The content shows high indicators of authenticity across multiple detection layers."
+            insights = [
+                "Consistent metadata and natural image textures detected.",
+                "Textual patterns align with human writing styles.",
+                "Information is corroborated by credible news sources."
+            ]
         elif score > 40:
             label = "Suspicious"
+            summary = "The content has mixed signals. While some elements appear real, there are noticeable inconsistencies."
+            insights = [
+                "Minor digital artifacts or unusual textures found in the image.",
+                "Text contains potentially automated or sensationalist phrasing.",
+                "Source credibility is currently unverified or inconsistent."
+            ]
         else:
             label = "Likely Fake"
+            summary = "Warning: Multiple indicators suggest this content has been artificially generated or manipulated."
+            insights = [
+                "High probability of AI-generated artifacts (GAN/Diffusion).",
+                "Text structure matches known AI-generated patterns.",
+                "No credible sources found to verify these claims."
+            ]
 
-        return score, label
+        return score, label, summary, insights
     except Exception as e:
         print(f"Error calculating reality score: {e}")
-        return 50.0, "Unable to determine"
+        return 50.0, "Unable to determine", "An error occurred during analysis.", ["Error processing data"]

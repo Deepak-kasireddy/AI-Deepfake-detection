@@ -117,11 +117,14 @@ def analyze():
         source_res = check_source(url)
         context_res = check_context()
 
-        score, label = calculate_reality(image_res, text_res, source_res)
-
+        # Calculate final score
+        score, label, summary, insights = calculate_reality(image_res, text_res, source_res)
+        
         return jsonify({
             "score": score,
             "label": label,
+            "summary": summary,
+            "insights": insights,
             "image": image_res,
             "text": text_res,
             "source": source_res,

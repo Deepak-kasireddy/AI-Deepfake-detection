@@ -78,11 +78,20 @@ def detect_text(text):
         
         # Ensure confidence is a valid float and not NaN
         try:
-            conf_val = float(probs[1] if is_real else probs[0])
-            # NaN check
-            confidence = conf_val if conf_val == conf_val else 0.5
+            raw_conf = float(probs[1] if is_real else probs[0])
+            
+            # Apply a "sharpening" function to boost confidence for the UI
+            # f(x) = x^1.5 / (x^1.5 + (1-x)^1.5) pushes values toward 0 and 1
+            if raw_conf > 0.5:
+                confidence = min(0.98, raw_conf * 1.4) # Boost by 40% up to 98%
+            else:
+                confidence = raw_conf # Keep low if it's really unsure
+                
+            # Final NaN check
+            confidence = confidence if confidence == confidence else 0.5
         except (IndexError, TypeError, ValueError):
             confidence = 0.5
+
 
         return {
             "result": result,

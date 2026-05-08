@@ -45,7 +45,10 @@ if not os.path.exists(FRONTEND_DIR):
         print("Could not find frontend directory anywhere!")
 else:
     print(f"Frontend directory verified at: {FRONTEND_DIR}")
-    print(f"Files in frontend: {os.listdir(FRONTEND_DIR)}")
+    try:
+        print(f"Files in frontend: {os.listdir(FRONTEND_DIR)}")
+    except Exception as e:
+        print(f"Could not list frontend files: {e}")
 
 # Serve Frontend
 @app.route('/')

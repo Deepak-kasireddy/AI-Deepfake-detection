@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,13 +7,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system dependencies required by TensorFlow and OpenCV
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
     libxrender1 \
     libxext6 \
+    build-essential \
+    python3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,18 +27,18 @@ ENV HOME=/home/user \
 
 WORKDIR $HOME/app
 
-# Install dependencies first for better caching
+# Upgrade pip and install wheel
+RUN pip install --no-cache-dir --user --upgrade pip setuptools wheel
+
+# Install dependencies
 COPY --chown=user backend/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Copy the rest of the application
-COPY --chown=user backend/ ./backend/
-COPY --chown=user fronted/ ./fronted/
+COPY --chown=user . .
 
 # Expose the Hugging Face default port
 EXPOSE 7860
 
-# Run with gunicorn, optimized for memory and startup time
-# --preload: loads the app before forking (saves memory and identifies errors early)
-# --timeout: increased for model loading
+# Run with gunicorn
 CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "300", "--workers", "1", "--threads", "4", "--preload", "--chdir", "backend", "app:app"]

@@ -10,9 +10,12 @@ def load_model():
     global _model
     if _model is None and os.path.exists(IMAGE_MODEL_PATH):
         try:
-            _model = tf.keras.models.load_model(IMAGE_MODEL_PATH)
+            # Use compile=False to avoid serialization errors with BatchNormalization axis
+            _model = tf.keras.models.load_model(IMAGE_MODEL_PATH, compile=False)
+            print("Successfully loaded image model (compile=False)")
         except Exception as e:
             print(f"Warning: Could not load image model: {e}")
+
 
 # Initial load
 load_model()

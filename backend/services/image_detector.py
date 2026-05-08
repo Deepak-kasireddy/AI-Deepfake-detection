@@ -8,13 +8,30 @@ _model = None
 
 def load_model():
     global _model
-    if _model is None and os.path.exists(IMAGE_MODEL_PATH):
+    if _model is not None:
+        return
+
+    if os.path.exists(IMAGE_MODEL_PATH):
         try:
-            # Use compile=False to avoid serialization errors with BatchNormalization axis
+            # 1. Try direct load first
             _model = tf.keras.models.load_model(IMAGE_MODEL_PATH, compile=False)
-            print("Successfully loaded image model (compile=False)")
+            print("Successfully loaded image model via load_model")
         except Exception as e:
-            print(f"Warning: Could not load image model: {e}")
+            print(f"Direct load failed, attempting architecture reconstruction: {e}")
+            try:
+                # 2. Reconstruct architecture based on training script
+                base = tf.keras.applications.MobileNetV2(weights=None, include_top=False, input_shape=(224,224,3))
+                _model = tf.keras.models.Sequential([
+                    base,
+                    tf.keras.layers.GlobalAveragePooling2D(),
+                    tf.keras.layers.Dense(1, activation='sigmoid')
+                ])
+                _model.load_weights(IMAGE_MODEL_PATH)
+                print("Successfully loaded image model via reconstruction and load_weights")
+            except Exception as e2:
+                print(f"Reconstruction load failed: {e2}")
+                _model = None
+
 
 
 # Initial load

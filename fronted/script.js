@@ -15,8 +15,10 @@ function getBadgeClass(label) {
     const l = (label || "").toLowerCase();
     if (l.includes("authentic") || l.includes("real")) return "authentic";
     if (l.includes("suspicious")) return "suspicious";
+    if (l.includes("inconclusive")) return "suspicious";
     return "fake";
 }
+
 
 // DOM Elements
 const dropZone = document.getElementById('drop-zone');
@@ -186,16 +188,31 @@ scanImageBtn.addEventListener('click', async () => {
     const formData = new FormData();
     formData.append('file', imageInput.files[0]);
     const result = await performAnalysis('/predict/image', formData, true);
-    // Wrap single result in aggregator-like structure for the renderer
+    
+    // Determine label and score correctly
+    let label = "Suspicious";
+    let score = result.confidence * 100;
+    
+    if (result.result === "Real") {
+        label = "Authentic";
+    } else if (result.result === "AI-Generated") {
+        label = "Likely Fake";
+        score = (1 - result.confidence) * 100; // Flip score for fake
+    } else {
+        label = "Inconclusive";
+        score = 50.0;
+    }
+
     renderResult({
-        score: result.confidence * 100,
-        label: result.result === "Real" ? "Authentic" : "Likely Fake",
-        summary: `Visual analysis of the uploaded media indicates ${result.result.toLowerCase()} patterns.`,
+        score: score,
+        label: label,
+        summary: `Visual analysis: ${result.result}. ${result.issues?.[0] || ""}`,
         insights: result.issues || [],
         image: result
     });
     scanImageBtn.disabled = false;
 });
+
 
 scanTextBtn.addEventListener('click', async () => {
     if (!textInput.value.trim()) return alert("Enter text first");

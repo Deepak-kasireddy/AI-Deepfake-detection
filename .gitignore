@@ -1,6 +1,8 @@
+**/__pycache__/
+*.pyc
 backend/venv/
-backend/__pycache__/
 backend/dataset/
+backend/uploads/
 *.jpg
 *.png
 *.csv
